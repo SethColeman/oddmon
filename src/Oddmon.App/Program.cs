@@ -9,6 +9,9 @@ internal static class Program
     private static void Main()
     {
         ApplicationConfiguration.Initialize();
+#pragma warning disable WFO5001 // SetColorMode is experimental on some SDKs
+        Application.SetColorMode(SystemColorMode.System); // follow OS light/dark for the tray menu
+#pragma warning restore WFO5001
 
         var config = ConfigStore.Load();
 
