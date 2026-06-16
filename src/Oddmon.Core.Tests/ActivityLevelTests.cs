@@ -1,5 +1,4 @@
 using Oddmon.Core;
-using Xunit;
 
 namespace Oddmon.Core.Tests;
 
