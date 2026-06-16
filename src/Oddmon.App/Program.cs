@@ -10,11 +10,20 @@ internal static class Program
     {
         ApplicationConfiguration.Initialize();
 
-        using var monitor = new DiskMonitor();
-        using var power = new PowerMonitor();
+        var config = ConfigStore.Load();
 
-        var menu = new ContextMenuStrip();
-        menu.Items.Add("Quit", null, (_, _) => Application.Exit());
+        using var monitor = new DiskMonitor(config.DiskSensitivity);
+        using var power = new PowerMonitor();
+        using var mic = new MicMonitor();
+        // Mute all sounds while the mic is in use (you're in a call). LEDs keep working.
+        string soundDir = config.SoundSetPath ?? Path.Combine(AppContext.BaseDirectory, "sounds");
+        using var sound = new SeekSoundPlayer(
+            () => monitor.Current != ActivityLevel.Idle && !mic.InCall, config.Volume, soundSetDir: soundDir)
+        {
+            Enabled = config.SoundEnabled,
+        };
+
+        var menu = BuildMenu(sound, config);
 
         using var trayIcon = new NotifyIcon
         {
@@ -24,12 +33,11 @@ internal static class Program
             ContextMenuStrip = menu,
         };
 
-        // DiskMonitor raises on a timer thread; marshal back to the UI thread to
-        // touch the NotifyIcon. A hidden control gives us a SynchronizationContext.
+        // Monitors raise on timer threads; marshal back to the UI thread to touch
+        // the NotifyIcon. A hidden control gives us a SynchronizationContext.
         using var sync = new Control();
         sync.CreateControl();
 
-        // Both LEDs share one icon; either change redraws it from current state.
         void Refresh() => sync.BeginInvoke(() =>
         {
             var old = trayIcon.Icon;
@@ -42,10 +50,6 @@ internal static class Program
         monitor.LevelChanged += _ => Refresh();
         power.TurboChanged += _ => Refresh();
 
-        using var mic = new MicMonitor();
-        // Mute all sounds while the mic is in use (you're in a call). LEDs keep working.
-        using var sound = new SeekSoundPlayer(() => monitor.Current != ActivityLevel.Idle && !mic.InCall);
-
         monitor.Start();
         power.Start();
         mic.Start();
@@ -53,5 +57,38 @@ internal static class Program
         Application.Run();
 
         trayIcon.Visible = false;
+    }
+
+    private static ContextMenuStrip BuildMenu(SeekSoundPlayer sound, OddmonConfig config)
+    {
+        var menu = new ContextMenuStrip();
+
+        var localConfig = config; // captured, updated on change then re-saved
+        var mute = new ToolStripMenuItem("Mute sounds") { CheckOnClick = true, Checked = !sound.Enabled };
+        mute.CheckedChanged += (_, _) =>
+        {
+            sound.Enabled = !mute.Checked;
+            localConfig = localConfig with { SoundEnabled = sound.Enabled };
+            ConfigStore.Save(localConfig);
+        };
+        menu.Items.Add(mute);
+
+        var volume = new ToolStripMenuItem("Volume");
+        foreach (int pct in new[] { 25, 50, 75, 100 })
+        {
+            var item = new ToolStripMenuItem($"{pct}%");
+            item.Click += (_, _) =>
+            {
+                sound.Volume = pct / 100f;
+                localConfig = localConfig with { Volume = sound.Volume };
+                ConfigStore.Save(localConfig);
+            };
+            volume.DropDownItems.Add(item);
+        }
+        menu.Items.Add(volume);
+
+        menu.Items.Add(new ToolStripSeparator());
+        menu.Items.Add("Quit", null, (_, _) => Application.Exit());
+        return menu;
     }
 }

@@ -4,34 +4,78 @@ using NAudio.Wave.SampleProviders;
 namespace Oddmon.Core;
 
 /// <summary>
-/// Plays overlapping seek clicks while the disk is busy. The NAudio mixer
-/// handles overlap; a timer ticks clicks at a steady cadence. See scope §3.4.
+/// Plays disk sounds while the disk is busy, muted during calls / manual mute.
+/// A real sound set (recorded WAVs) loops while busy; with no set it falls back
+/// to synthesized one-shot clicks. See scope §3.4.
 /// </summary>
 public sealed class SeekSoundPlayer : IDisposable
 {
     private readonly MixingSampleProvider _mixer;
+    private readonly VolumeSampleProvider _master;
     private readonly WaveOutEvent _output;
     private readonly WaveFormat _format;
-    private readonly float[] _click;
     private readonly Func<bool> _isBusy;
     private readonly System.Timers.Timer _timer;
 
-    /// <param name="isBusy">Returns true while the disk is active (drives clicks).</param>
-    /// <param name="clickIntervalMs">Cadence of clicks while busy.</param>
-    public SeekSoundPlayer(Func<bool> isBusy, int sampleRate = 44100, double clickIntervalMs = 110.0)
+    // One of these is active depending on whether a real sound set loaded.
+    private readonly VolumeSampleProvider? _busyGate; // sound-set: loop, gated by busy
+    private readonly float[][]? _clicks;              // synth: discrete one-shots
+    private readonly Random _rng = new();
+
+    public bool Enabled { get; set; } = true;
+
+    public float Volume
+    {
+        get => _master.Volume;
+        set => _master.Volume = Math.Clamp(value, 0f, 1f);
+    }
+
+    /// <param name="isBusy">Returns true while the disk is active.</param>
+    /// <param name="volume">Master volume 0–1.</param>
+    /// <param name="soundSetDir">Folder of WAV clips; null/empty falls back to synth clicks.</param>
+    public SeekSoundPlayer(Func<bool> isBusy, float volume = 0.3f, int sampleRate = 44100,
+        double clickIntervalMs = 85.0, string? soundSetDir = null)
     {
         _isBusy = isBusy;
         _format = WaveFormat.CreateIeeeFloatWaveFormat(sampleRate, 1);
-        _click = ClickSynth.Generate(sampleRate);
-
         _mixer = new MixingSampleProvider(_format) { ReadFully = true };
-        _output = new WaveOutEvent();
-        _output.Init(_mixer);
 
-        // ponytail: fixed cadence while busy, not true per-I/O rate scaling.
-        // Add rate-scaled chatter (ETW or counter-rate) if it feels too uniform (scope §3.4).
+        var set = SoundSet.Load(soundSetDir, sampleRate);
+        if (set.Length > 0)
+        {
+            // Real recording: loop it continuously, gate the volume on disk activity.
+            // ponytail: hard 0/1 gate may click on transitions; add a short ramp if audible.
+            _busyGate = new VolumeSampleProvider(new LoopSampleProvider(set, _format)) { Volume = 0f };
+            _mixer.AddMixerInput(_busyGate);
+        }
+        else
+        {
+            double[] freqs = { 1100, 1400, 1750, 2200 };
+            _clicks = freqs.Select((f, i) => ClickSynth.Generate(sampleRate, f, 30, seed: i + 1)).ToArray();
+        }
+
+        _master = new VolumeSampleProvider(_mixer) { Volume = Math.Clamp(volume, 0f, 1f) };
+        _output = new WaveOutEvent();
+        _output.Init(_master);
+
         _timer = new System.Timers.Timer(clickIntervalMs) { AutoReset = true };
-        _timer.Elapsed += (_, _) => { if (_isBusy()) PlayClick(); };
+        _timer.Elapsed += (_, _) => Tick();
+    }
+
+    private void Tick()
+    {
+        bool play = Enabled && _isBusy();
+
+        if (_busyGate is not null)
+        {
+            _busyGate.Volume = play ? 1f : 0f;
+            return;
+        }
+
+        // Synth fallback: irregular one-shot clicks (random skip + variant pick).
+        if (!play || _rng.NextDouble() < 0.35)
+            return;
+        _mixer.AddMixerInput(new OneShot(_clicks![_rng.Next(_clicks.Length)], _format));
     }
 
     public void Start()
@@ -39,8 +83,6 @@ public sealed class SeekSoundPlayer : IDisposable
         _output.Play();
         _timer.Start();
     }
-
-    public void PlayClick() => _mixer.AddMixerInput(new OneShot(_click, _format));
 
     public void Dispose()
     {
