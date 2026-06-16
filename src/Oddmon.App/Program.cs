@@ -35,7 +35,10 @@ internal static class Program
             trayIcon.Text = $"oddmon — disk {level.ToString().ToLowerInvariant()}";
         });
 
+        using var sound = new SeekSoundPlayer(() => monitor.Current != ActivityLevel.Idle);
+
         monitor.Start();
+        sound.Start();
         Application.Run();
 
         trayIcon.Visible = false;
