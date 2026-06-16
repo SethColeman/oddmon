@@ -35,9 +35,12 @@ internal static class Program
             trayIcon.Text = $"oddmon — disk {level.ToString().ToLowerInvariant()}";
         });
 
-        using var sound = new SeekSoundPlayer(() => monitor.Current != ActivityLevel.Idle);
+        using var mic = new MicMonitor();
+        // Mute all sounds while the mic is in use (you're in a call). LEDs keep working.
+        using var sound = new SeekSoundPlayer(() => monitor.Current != ActivityLevel.Idle && !mic.InCall);
 
         monitor.Start();
+        mic.Start();
         sound.Start();
         Application.Run();
 
