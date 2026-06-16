@@ -2,9 +2,9 @@
 
 **Name:** `oddmon` — a play on **AUD**itory **MON**itor (and reads like "oddment," fitting a quirky nostalgia utility)
 **Platform:** Windows 11 (Windows 10 22H2 as secondary target)
-**Stack:** C# / .NET 8 (LTS), single-file self-contained `.exe`
+**Stack:** C# / **.NET 10 (LTS)** — current LTS; original draft said .NET 8
 **License:** MIT
-**Status:** Draft scope for review — not yet started
+**Status:** In progress — M0–M5 + M7 (config slice) built and on `main`; M6 and M8 remain. See §5.
 
 ---
 
@@ -160,19 +160,27 @@ DiskMonitor PowerMonitor ConnectionMonitor MeetingMonitor (future)
 
 ## 5. Milestones
 
-| # | Milestone | Deliverable |
-|---|-----------|-------------|
-| M0 | Project setup | Repo, MIT license, README, .NET 8 solution, GitHub Actions build CI |
-| M1 | HDD activity LED | Animated tray icon reflecting live disk read/write activity |
-| M2 | HDD sound engine | Seek clicks tied to disk I/O; sound sets; volume; clicks-only/ambient modes |
-| M3 | Meeting auto-mute | Mic-in-use detection + MuteCoordinator gating all audio |
-| M4 | Turbo LED | PowerMonitor (AC/battery + power mode) → Turbo LED with configurable mapping |
-| M5 | Desktop front-panel overlay | Optional WPF always-on-top LED panel (HDD + Turbo), draggable, snap, opacity |
-| M6 | Connection sounds | VPN (FortiClient) + Wi-Fi connecting detection → modem handshake; configurable profiles |
-| M7 | Settings UI + config | Settings window, `config.json`, quiet hours, autostart toggle, display-mode choice |
-| M8 | Polish & release | Packaging, default CC0 sound sets, docs, signed/first release, issue templates |
+| # | Milestone | Deliverable | Status |
+|---|-----------|-------------|--------|
+| M0 | Project setup | Repo, MIT license, README, .NET 10 solution, GitHub Actions build CI | ✅ Done |
+| M1 | HDD activity LED | Tray LED reflecting live disk activity (gated on % Idle Time) | ✅ Done |
+| M2 | HDD sound engine | Real CC0 recording looped while busy; synth fallback; volume; sound sets | ✅ Done |
+| M3 | Meeting auto-mute | Mic-in-use detection (ConsentStore registry) gating audio | ✅ Done |
+| M4 | Turbo LED | PowerMonitor (AC/battery + power mode) → Turbo LED, default mapping | ✅ Done |
+| M5 | Desktop panel | Always-on-top LED panel (HDD + Turbo), draggable, position remembered | ✅ Done (WinForms) |
+| M6 | Connection sounds | VPN (FortiClient) + Wi-Fi connecting detection → modem handshake | ⬜ Not started |
+| M7 | Settings + config | `config.json` + tray menu (mute/volume/panel); theme-aware menu | 🟡 Partial |
+| M8 | Polish & release | Packaging, signed first release, issue templates | ⬜ Not started |
 
-A natural MVP is **M1 + M2 + M3 + M4** — the HDD and Turbo LEDs plus polite-in-meetings sounds, all in the tray. The desktop overlay (M5) and connection/modem sounds (M6) are fast follows.
+A natural MVP is **M1 + M2 + M3 + M4** — the HDD and Turbo LEDs plus polite-in-meetings sounds, all in the tray. ✅ Reached.
+
+### Implementation deviations from the original plan
+- **.NET 10**, not .NET 8 (current LTS, installed SDK); `.slnx` solution format.
+- **HDD activity signal:** gated on `% Idle Time` (idle floor ~2–3% busy) with read/write *bytes* picking the color — ops/sec was dominated by background metadata writes. Default `minBusyPercent = 8`.
+- **Sound:** a real CC0 recording **loops while busy**; synth clicks are the no-asset fallback (not the primary). Sound sets are a folder of WAVs.
+- **Meeting detection:** reads the `ConsentStore` registry (`LastUsedTimeStop == 0`) — the signal behind the taskbar mic indicator — rather than WASAPI session enumeration. No separate `MuteCoordinator` class yet (one mute reason; gated directly).
+- **M5 panel:** plain borderless WinForms `Form`, not WPF — avoids mixing UI frameworks/message loops. WPF glow/skeuomorphism, snap-to-corner, opacity/size, click-through deferred.
+- **M7:** config is `config.json` + tray menu; full Settings *window*, quiet hours, and autostart still deferred.
 
 ---
 
@@ -189,16 +197,16 @@ A natural MVP is **M1 + M2 + M3 + M4** — the HDD and Turbo LEDs plus polite-in
 
 ## 7. Suggested Repo Layout
 
+Actual layout (tray/panel LEDs are drawn at runtime, so no icon/panel art assets):
+
 ```
 oddmon/
 ├─ src/
-│  ├─ Oddmon.App/             # tray host, settings UI, entry point
-│  ├─ Oddmon.Core/            # monitors, coordinator, audio engine
-│  └─ Oddmon.Core.Tests/      # unit tests
+│  ├─ Oddmon.App/             # tray host, desktop panel, entry point
+│  ├─ Oddmon.Core/            # monitors, audio engine, config
+│  └─ Oddmon.Core.Tests/      # unit + integration tests
 ├─ assets/
-│  ├─ icons/                  # idle/read/write/mixed + turbo on/off tray frames
-│  ├─ panel/                  # front-panel overlay art, LED glow sprites
-│  └─ sounds/                 # default CC0 sound sets
+│  └─ sounds/                 # default CC0 sound set (+ CREDITS.md)
 ├─ docs/
 ├─ .github/workflows/build.yml
 ├─ LICENSE  (MIT)
@@ -208,7 +216,9 @@ oddmon/
 ---
 
 ## 8. Next Steps
-1. Confirm scope (this doc) and name.
-2. Early spike: prototype VPN-connecting detection against FortiClient (highest risk).
-3. Stand up M0 repo scaffold + CI.
-4. Build MVP (M1–M3).
+1. ~~Confirm scope and name.~~ ✅
+2. ~~Stand up M0 repo scaffold + CI.~~ ✅
+3. ~~Build MVP (M1–M4) + desktop panel (M5) + config (M7 slice).~~ ✅
+4. **M6 — connection sounds:** spike VPN-connecting detection against FortiClient (the highest-risk piece, see §6) before building the modem-sound trigger model.
+5. **M7 remainder:** full Settings window, quiet hours, autostart toggle.
+6. **M8:** packaging, signed first release, issue templates.

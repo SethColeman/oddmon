@@ -2,16 +2,29 @@
 
 An **AUD**itory (and visual) **MON**itor for Windows — a lightweight tray utility
 that brings back the sounds and front-panel lights of older PCs, tied to what your
-machine is actually doing: HDD seek clicks on real disk I/O, a glowing HDD activity
-LED, a power-aware "Turbo" LED, and the classic dial-up handshake when a VPN or
-Wi-Fi connection is coming up. It stays quiet automatically while you're in a call.
+machine is actually doing. It stays quiet automatically while you're in a call.
 
 See [`docs/oddmon-scope.md`](docs/oddmon-scope.md) for the full scope.
 
-## Status
+## Features
 
-Early scaffold (milestone **M0**): solution, projects, and CI are in place. No
-features are implemented yet — see the milestones in the scope doc.
+Working today:
+
+- **HDD activity LED** — a tray LED that lights green (read) / red (write) / amber
+  (mixed) on real disk activity, gated on `% Idle Time` so background noise doesn't
+  trigger it. Sensitivity is configurable.
+- **Turbo LED** — a power-aware LED reflecting AC/battery + the Windows power-mode
+  slider (bright / dim / off), echoing the old 386/486 Turbo light.
+- **Combined tray icon** — both LEDs stacked in a single tray slot; the menu follows
+  the OS light/dark theme.
+- **HDD sounds** — a real (CC0) hard-drive recording loops while the disk is busy,
+  with a synthesized fallback when no sound set is present.
+- **Meeting auto-mute** — sounds go silent while any app is using the microphone
+  (you're in a call); the LEDs keep working.
+- **Desktop panel** — an optional always-on-top widget showing both LEDs with labels,
+  draggable, with its position remembered.
+
+Not yet built: connection / dial-up modem sounds (M6); packaging & release (M8).
 
 ## Build & run
 
@@ -19,26 +32,58 @@ Requires the **.NET 10 SDK** (current LTS).
 
 ```sh
 dotnet build Oddmon.slnx
-dotnet test Oddmon.slnx
+dotnet test Oddmon.slnx                                   # unit tests
+dotnet test Oddmon.slnx --filter Category=Integration     # live disk test (manual)
 dotnet run --project src/Oddmon.App
 ```
 
-> Note: the scope doc originally named .NET 8; the project targets **.NET 10**,
-> which is the current LTS and the installed SDK.
+> The original scope named .NET 8; the project targets **.NET 10** (current LTS,
+> the installed SDK). It uses the new `.slnx` solution format.
+
+## Tray menu
+
+Right-click the tray icon:
+
+- **Mute sounds** — manual mute toggle
+- **Volume** — 25 / 50 / 75 / 100 %
+- **Show panel** — toggle the desktop LED panel
+
+All three persist across restarts.
+
+## Configuration
+
+Settings live in `config.json` at `%APPDATA%\Oddmon\`, written by the tray menu and
+**hand-editable**:
+
+| Key | Meaning | Default |
+|-----|---------|---------|
+| `DiskSensitivity` | Disk-busy % to light the LED / play sound; lower = more sensitive | `8` |
+| `Volume` | Master sound volume, 0–1 | `0.3` |
+| `SoundEnabled` | Sounds on/off (manual mute) | `true` |
+| `SoundSetPath` | Folder of WAV clips; `null` uses the bundled set | `null` |
+| `OverlayEnabled` / `OverlayX` / `OverlayY` | Desktop panel visibility & position | off |
+
+### Custom sound sets
+
+Drop `.wav` files in a folder and point `SoundSetPath` at it (or replace the WAV in
+`assets/sounds/`). A recording longer than a click loops while the disk is busy; with
+no playable WAVs, oddmon falls back to synthesized clicks. Bundle only CC0 / public-
+domain audio — see [`assets/sounds/CREDITS.md`](assets/sounds/CREDITS.md).
 
 ## Layout
 
 ```
 oddmon/
 ├─ src/
-│  ├─ Oddmon.App/         # tray host, settings UI, entry point
-│  ├─ Oddmon.Core/        # monitors, coordinator, audio engine
-│  └─ Oddmon.Core.Tests/  # unit tests
-├─ assets/                # icons, panel art, default CC0 sound sets
+│  ├─ Oddmon.App/         # tray host, desktop panel, entry point
+│  ├─ Oddmon.Core/        # monitors, audio engine, config
+│  └─ Oddmon.Core.Tests/  # unit + integration tests
+├─ assets/sounds/         # default CC0 sound set (+ CREDITS.md)
 ├─ docs/                  # scope and design notes
-└─ .github/workflows/     # CI
+└─ .github/workflows/     # CI (build + test on windows-latest)
 ```
 
 ## License
 
-[MIT](LICENSE) © 2026 Seth
+[MIT](LICENSE) © 2026 Seth. Bundled audio is CC0 — see
+[`assets/sounds/CREDITS.md`](assets/sounds/CREDITS.md).
