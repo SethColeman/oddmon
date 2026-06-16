@@ -1,0 +1,7 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Oddmon.App/Oddmon.App.csproj" />
+    <Project Path="src/Oddmon.Core.Tests/Oddmon.Core.Tests.csproj" />
+    <Project Path="src/Oddmon.Core/Oddmon.Core.csproj" />
+  </Folder>
+</Solution>
