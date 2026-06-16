@@ -1,3 +1,4 @@
+using System.Drawing;
 using System.Windows.Forms;
 using Oddmon.Core;
 
@@ -14,6 +15,7 @@ internal static class Program
 #pragma warning restore WFO5001
 
         var config = ConfigStore.Load();
+        void Save() => ConfigStore.Save(config);
 
         using var monitor = new DiskMonitor(config.DiskSensitivity);
         using var power = new PowerMonitor();
@@ -26,53 +28,28 @@ internal static class Program
             Enabled = config.SoundEnabled,
         };
 
-        var menu = BuildMenu(sound, config);
-
-        using var trayIcon = new NotifyIcon
+        using var overlay = new OverlayForm();
+        if (config.OverlayX is int ox && config.OverlayY is int oy)
+            overlay.Location = new Point(ox, oy);
+        else
         {
-            Icon = TrayIconFactory.Create(ActivityLevel.Idle, TurboState.Off),
-            Text = "oddmon — disk idle · turbo off",
-            Visible = true,
-            ContextMenuStrip = menu,
+            var wa = Screen.PrimaryScreen!.WorkingArea;
+            overlay.Location = new Point(wa.Right - overlay.Width - 16, wa.Top + 16);
+        }
+        overlay.ResizeEnd += (_, _) =>
+        {
+            config = config with { OverlayX = overlay.Location.X, OverlayY = overlay.Location.Y };
+            Save();
         };
 
-        // Monitors raise on timer threads; marshal back to the UI thread to touch
-        // the NotifyIcon. A hidden control gives us a SynchronizationContext.
-        using var sync = new Control();
-        sync.CreateControl();
-
-        void Refresh() => sync.BeginInvoke(() =>
-        {
-            var old = trayIcon.Icon;
-            trayIcon.Icon = TrayIconFactory.Create(monitor.Current, power.Current);
-            old?.Dispose();
-            trayIcon.Text = $"oddmon — disk {monitor.Current.ToString().ToLowerInvariant()} · " +
-                            $"turbo {power.Current.ToString().ToLowerInvariant()}";
-        });
-
-        monitor.LevelChanged += _ => Refresh();
-        power.TurboChanged += _ => Refresh();
-
-        monitor.Start();
-        power.Start();
-        mic.Start();
-        sound.Start();
-        Application.Run();
-
-        trayIcon.Visible = false;
-    }
-
-    private static ContextMenuStrip BuildMenu(SeekSoundPlayer sound, OddmonConfig config)
-    {
         var menu = new ContextMenuStrip();
 
-        var localConfig = config; // captured, updated on change then re-saved
-        var mute = new ToolStripMenuItem("Mute sounds") { CheckOnClick = true, Checked = !sound.Enabled };
+        var mute = new ToolStripMenuItem("Mute sounds") { CheckOnClick = true, Checked = !config.SoundEnabled };
         mute.CheckedChanged += (_, _) =>
         {
             sound.Enabled = !mute.Checked;
-            localConfig = localConfig with { SoundEnabled = sound.Enabled };
-            ConfigStore.Save(localConfig);
+            config = config with { SoundEnabled = sound.Enabled };
+            Save();
         };
         menu.Items.Add(mute);
 
@@ -83,15 +60,60 @@ internal static class Program
             item.Click += (_, _) =>
             {
                 sound.Volume = pct / 100f;
-                localConfig = localConfig with { Volume = sound.Volume };
-                ConfigStore.Save(localConfig);
+                config = config with { Volume = sound.Volume };
+                Save();
             };
             volume.DropDownItems.Add(item);
         }
         menu.Items.Add(volume);
 
+        var panel = new ToolStripMenuItem("Show panel") { CheckOnClick = true, Checked = config.OverlayEnabled };
+        panel.CheckedChanged += (_, _) =>
+        {
+            if (panel.Checked) overlay.Show(); else overlay.Hide();
+            config = config with { OverlayEnabled = panel.Checked };
+            Save();
+        };
+        menu.Items.Add(panel);
+
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("Quit", null, (_, _) => Application.Exit());
-        return menu;
+
+        using var trayIcon = new NotifyIcon
+        {
+            Icon = TrayIconFactory.Create(ActivityLevel.Idle, TurboState.Off),
+            Text = "oddmon — disk idle · turbo off",
+            Visible = true,
+            ContextMenuStrip = menu,
+        };
+
+        // Monitors raise on timer threads; marshal back to the UI thread for the UI.
+        using var sync = new Control();
+        sync.CreateControl();
+
+        void Refresh() => sync.BeginInvoke(() =>
+        {
+            var old = trayIcon.Icon;
+            trayIcon.Icon = TrayIconFactory.Create(monitor.Current, power.Current);
+            old?.Dispose();
+            trayIcon.Text = $"oddmon — disk {monitor.Current.ToString().ToLowerInvariant()} · " +
+                            $"turbo {power.Current.ToString().ToLowerInvariant()}";
+            overlay.SetActivity(monitor.Current);
+            overlay.SetTurbo(power.Current);
+        });
+
+        monitor.LevelChanged += _ => Refresh();
+        power.TurboChanged += _ => Refresh();
+
+        if (config.OverlayEnabled)
+            overlay.Show();
+
+        monitor.Start();
+        power.Start();
+        mic.Start();
+        sound.Start();
+        Application.Run();
+
+        trayIcon.Visible = false;
     }
 }

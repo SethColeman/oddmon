@@ -12,6 +12,10 @@ public sealed record OddmonConfig
 
     /// <summary>Folder of WAV clips; null uses the bundled set, else synth (scope §3.4).</summary>
     public string? SoundSetPath { get; init; }
+
+    public bool OverlayEnabled { get; init; }
+    public int? OverlayX { get; init; }
+    public int? OverlayY { get; init; }
 }
 
 /// <summary>Loads/saves <see cref="OddmonConfig"/> at %APPDATA%\Oddmon\config.json.</summary>
