@@ -1,16 +1,15 @@
 using System.Drawing;
-using System.Drawing.Drawing2D;
 using Oddmon.Core;
 
 namespace Oddmon.App;
 
 /// <summary>
-/// Builds tray icons at runtime as a glowing LED dot, one color per
-/// <see cref="ActivityLevel"/> — no binary icon assets to ship or license.
+/// Builds the tray icon at runtime: two stacked rectangular LEDs in one 16x16
+/// icon — HDD activity on top, Turbo below. No binary icon assets to ship.
 /// </summary>
 internal static class TrayIconFactory
 {
-    private static Color ColorFor(ActivityLevel level) => level switch
+    private static Color ActivityColor(ActivityLevel level) => level switch
     {
         ActivityLevel.Read => Color.FromArgb(40, 220, 60),    // green
         ActivityLevel.Write => Color.FromArgb(230, 50, 50),   // red
@@ -18,26 +17,30 @@ internal static class TrayIconFactory
         _ => Color.FromArgb(45, 55, 50),                      // idle: dim
     };
 
+    private static Color TurboColor(TurboState state) => state switch
+    {
+        TurboState.Bright => Color.FromArgb(255, 215, 0),     // bright gold
+        TurboState.Dim => Color.FromArgb(110, 95, 0),         // dim gold
+        _ => Color.FromArgb(50, 48, 30),                      // off
+    };
+
     /// <summary>
     /// Caller owns the returned <see cref="Icon"/> and must dispose the previous
     /// one — GDI handles from GetHicon are not garbage-collected.
     /// </summary>
-    public static Icon Create(ActivityLevel level)
+    public static Icon Create(ActivityLevel level, TurboState turbo)
     {
         const int size = 16;
         using var bmp = new Bitmap(size, size);
         using (var g = Graphics.FromImage(bmp))
         {
-            g.SmoothingMode = SmoothingMode.AntiAlias;
-            var dot = new Rectangle(2, 2, size - 4, size - 4);
-            using var brush = new SolidBrush(ColorFor(level));
-            g.FillEllipse(brush, dot);
+            DrawLed(g, new Rectangle(2, 3, 12, 4), ActivityColor(level)); // top: HDD
+            DrawLed(g, new Rectangle(2, 9, 12, 4), TurboColor(turbo));    // bottom: Turbo
         }
 
         IntPtr hicon = bmp.GetHicon();
         try
         {
-            // Clone so the Icon owns its own copy; then free the GDI handle.
             using var temp = Icon.FromHandle(hicon);
             return (Icon)temp.Clone();
         }
@@ -45,5 +48,11 @@ internal static class TrayIconFactory
         {
             NativeMethods.DestroyIcon(hicon);
         }
+    }
+
+    private static void DrawLed(Graphics g, Rectangle rect, Color color)
+    {
+        using var brush = new SolidBrush(color);
+        g.FillRectangle(brush, rect);
     }
 }
