@@ -15,6 +15,7 @@
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <AssemblyName>oddmon</AssemblyName>
   </PropertyGroup>
 
 </Project>

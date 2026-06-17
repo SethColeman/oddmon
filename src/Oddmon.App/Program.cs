@@ -22,8 +22,10 @@ internal static class Program
         using var mic = new MicMonitor();
         // Mute all sounds while the mic is in use (you're in a call). LEDs keep working.
         string soundDir = config.SoundSetPath ?? Path.Combine(AppContext.BaseDirectory, "sounds");
+        // Silent while idle, in a call (mic in use), or during quiet hours. LEDs keep working.
         using var sound = new SeekSoundPlayer(
-            () => monitor.Current != ActivityLevel.Idle && !mic.InCall, config.Volume, soundSetDir: soundDir)
+            () => monitor.Current != ActivityLevel.Idle && !mic.InCall && !config.InQuietHours(DateTime.Now),
+            config.Volume, soundSetDir: soundDir)
         {
             Enabled = config.SoundEnabled,
         };
@@ -75,6 +77,25 @@ internal static class Program
             Save();
         };
         menu.Items.Add(panel);
+
+        menu.Items.Add(new ToolStripSeparator());
+
+        var autostart = new ToolStripMenuItem("Start with Windows") { CheckOnClick = true, Checked = Autostart.IsEnabled() };
+        autostart.CheckedChanged += (_, _) =>
+        {
+            Autostart.Set(autostart.Checked);
+            config = config with { Autostart = autostart.Checked };
+            Save();
+        };
+        menu.Items.Add(autostart);
+
+        // The config file is the "settings window": sensitivity, sound-set path and
+        // quiet hours are hand-edited there (scope §4). Edits apply on next launch.
+        menu.Items.Add("Edit settings (config.json)…", null, (_, _) =>
+        {
+            Save(); // ensure the file exists before opening
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(ConfigStore.FilePath) { UseShellExecute = true });
+        });
 
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("Quit", null, (_, _) => Application.Exit());

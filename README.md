@@ -23,8 +23,14 @@ Working today:
   (you're in a call); the LEDs keep working.
 - **Desktop panel** — an optional always-on-top widget showing both LEDs with labels,
   draggable, with its position remembered.
+- **Quiet hours** — a daily window (set in `config.json`) where sounds stay silent on
+  top of the meeting auto-mute and manual mute.
+- **Start with Windows** — opt-in launch at login (per-user, removable from Task
+  Manager → Startup).
 
-Not yet built: connection / dial-up modem sounds (M6); packaging & release (M8).
+Connection / dial-up modem sounds (M6) were dropped — the VPN "connecting" phase
+isn't reliably detectable without admin (see
+[docs/oddmon-scope.md](docs/oddmon-scope.md) §6).
 
 ## Build & run
 
@@ -47,8 +53,10 @@ Right-click the tray icon:
 - **Mute sounds** — manual mute toggle
 - **Volume** — 25 / 50 / 75 / 100 %
 - **Show panel** — toggle the desktop LED panel
+- **Start with Windows** — opt-in launch at login
+- **Edit settings (config.json)…** — opens the config file in your default editor
 
-All three persist across restarts.
+All persist across restarts. Edits made directly in `config.json` apply on next launch.
 
 ## Configuration
 
@@ -62,6 +70,8 @@ Settings live in `config.json` at `%APPDATA%\Oddmon\`, written by the tray menu 
 | `SoundEnabled` | Sounds on/off (manual mute) | `true` |
 | `SoundSetPath` | Folder of WAV clips; `null` uses the bundled set | `null` |
 | `OverlayEnabled` / `OverlayX` / `OverlayY` | Desktop panel visibility & position | off |
+| `QuietHoursStart` / `QuietHoursEnd` | Silence window as `"HH:mm"`; wraps midnight (e.g. `"22:00"`–`"07:00"`); `null` disables | `null` |
+| `Autostart` | Launch at login (mirrors the tray toggle) | `false` |
 
 ### Custom sound sets
 
@@ -80,8 +90,21 @@ oddmon/
 │  └─ Oddmon.Core.Tests/  # unit + integration tests
 ├─ assets/sounds/         # default CC0 sound set (+ CREDITS.md)
 ├─ docs/                  # scope and design notes
-└─ .github/workflows/     # CI (build + test on windows-latest)
+└─ .github/              # CI (build+test), release workflow, issue templates
 ```
+
+## Releases
+
+Push a `vX.Y.Z` tag and the [`release` workflow](.github/workflows/release.yml)
+publishes a single-file, self-contained win-x64 build (no .NET install needed),
+zips it with the `sounds/` folder, and creates a GitHub release:
+
+```sh
+git tag v0.2.0 && git push origin v0.2.0
+```
+
+Builds are **not code-signed** (no certificate yet), so Windows SmartScreen may warn
+on first run — "More info → Run anyway".
 
 ## License
 

@@ -4,7 +4,7 @@
 **Platform:** Windows 11 (Windows 10 22H2 as secondary target)
 **Stack:** C# / **.NET 10 (LTS)** — current LTS; original draft said .NET 8
 **License:** MIT
-**Status:** In progress — M0–M5 + M7 (config slice) built and on `main`; M6 and M8 remain. See §5.
+**Status:** v1 feature-complete on `main` — M0–M5, M7, M8 built. M6 (connection sounds) **dropped** — spike found the VPN "connecting" phase isn't reliably observable (see §6). See §5.
 
 ---
 
@@ -168,9 +168,9 @@ DiskMonitor PowerMonitor ConnectionMonitor MeetingMonitor (future)
 | M3 | Meeting auto-mute | Mic-in-use detection (ConsentStore registry) gating audio | ✅ Done |
 | M4 | Turbo LED | PowerMonitor (AC/battery + power mode) → Turbo LED, default mapping | ✅ Done |
 | M5 | Desktop panel | Always-on-top LED panel (HDD + Turbo), draggable, position remembered | ✅ Done (WinForms) |
-| M6 | Connection sounds | VPN (FortiClient) + Wi-Fi connecting detection → modem handshake | ⬜ Not started |
-| M7 | Settings + config | `config.json` + tray menu (mute/volume/panel); theme-aware menu | 🟡 Partial |
-| M8 | Polish & release | Packaging, signed first release, issue templates | ⬜ Not started |
+| M6 | Connection sounds | VPN (FortiClient) + Wi-Fi connecting detection → modem handshake | ❌ Dropped — connecting phase not reliably observable (see §6) |
+| M7 | Settings + config | `config.json` + tray menu (mute/volume/panel/autostart/quiet hours, "Edit settings" opens config) | ✅ Done |
+| M8 | Polish & release | Single-file self-contained publish on tag, GitHub release workflow, issue templates | ✅ Done (signing deferred — no cert) |
 
 A natural MVP is **M1 + M2 + M3 + M4** — the HDD and Turbo LEDs plus polite-in-meetings sounds, all in the tray. ✅ Reached.
 
@@ -180,13 +180,14 @@ A natural MVP is **M1 + M2 + M3 + M4** — the HDD and Turbo LEDs plus polite-in
 - **Sound:** a real CC0 recording **loops while busy**; synth clicks are the no-asset fallback (not the primary). Sound sets are a folder of WAVs.
 - **Meeting detection:** reads the `ConsentStore` registry (`LastUsedTimeStop == 0`) — the signal behind the taskbar mic indicator — rather than WASAPI session enumeration. No separate `MuteCoordinator` class yet (one mute reason; gated directly).
 - **M5 panel:** plain borderless WinForms `Form`, not WPF — avoids mixing UI frameworks/message loops. WPF glow/skeuomorphism, snap-to-corner, opacity/size, click-through deferred.
-- **M7:** config is `config.json` + tray menu; full Settings *window*, quiet hours, and autostart still deferred.
+- **M7:** the tray menu is the settings UI — mute, volume, panel, **autostart** (HKCU Run, opt-in), and an **"Edit settings"** item that opens `config.json` in the default editor. **Quiet hours** is a config-file window (`QuietHoursStart`/`End` "HH:mm", wrap-around aware) gating audio alongside the meeting/mute checks; edits apply on next launch. No standalone Settings *window* — the hand-editable JSON covers the long-tail knobs (sensitivity, sound-set path), so a bespoke dialog was skipped as redundant.
+- **M8:** `release.yml` publishes a single-file self-contained win-x64 build on a `v*` tag and cuts a GitHub release. Code signing deferred — no certificate; SmartScreen may warn on first run (noted in the release body).
 
 ---
 
 ## 6. Key Risks & Open Questions
 
-- **Catching the VPN "connecting" phase precisely.** FortiClient doesn't expose a clean public "now connecting" signal. Best-effort detection (adapter state + process/log heuristics) may sometimes only catch "connected." Mitigation: configurable profiles; allow a manual "play on VPN launch" mode as fallback. *This is the riskiest piece — worth a spike early.*
+- **Catching the VPN "connecting" phase precisely.** ❌ **Spiked (2026-06, FortiClient SSL VPN) — confirmed infeasible without admin.** Across a full reconnect, the only observable signal is the Fortinet NDIS adapter jumping `Down→Up` with a routable IP (reliable "connected", instant). The connecting phase (auth/MFA/tunnel) is entirely kernel-driver/GUI: no user-mode socket, no adapter intermediate state, no readable log/registry (ACL'd). The only reliable behavior would be "play handshake *on* connect, not during" — judged not worth shipping. **M6 dropped.**
 - **Meeting detection false positives/negatives.** Voice typing or a music app using the mic could read as "in a call." Mitigation: combine mic-in-use with known-app heuristics; manual override always available.
 - **Performance-counter fidelity vs. ETW.** Counters are easy but coarse; ETW is authentic but needs admin. Ship counters in v1, ETW as opt-in later.
 - **Audio sample licensing.** Must ship only CC0/royalty-free HDD and dial-up samples, or generate/record originals. Don't bundle anything copyrighted. (The dial-up handshake melody itself is a real-world signal, but specific recordings can be copyrighted — source carefully.)
@@ -219,6 +220,6 @@ oddmon/
 1. ~~Confirm scope and name.~~ ✅
 2. ~~Stand up M0 repo scaffold + CI.~~ ✅
 3. ~~Build MVP (M1–M4) + desktop panel (M5) + config (M7 slice).~~ ✅
-4. **M6 — connection sounds:** spike VPN-connecting detection against FortiClient (the highest-risk piece, see §6) before building the modem-sound trigger model.
-5. **M7 remainder:** full Settings window, quiet hours, autostart toggle.
-6. **M8:** packaging, signed first release, issue templates.
+4. ~~M6 — connection sounds.~~ ❌ Dropped — spike found connecting detection infeasible (see §6).
+5. ~~M7 remainder — autostart, quiet hours, settings access.~~ ✅ Done.
+6. ~~M8 — packaging, release workflow, issue templates.~~ ✅ Done; code signing awaits a certificate.

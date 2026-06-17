@@ -16,6 +16,25 @@ public sealed record OddmonConfig
     public bool OverlayEnabled { get; init; }
     public int? OverlayX { get; init; }
     public int? OverlayY { get; init; }
+
+    /// <summary>Launch oddmon at login (HKCU Run entry, opt-in). See scope §4.</summary>
+    public bool Autostart { get; init; }
+
+    /// <summary>Quiet-hours window as "HH:mm" strings; null/unparseable disables it (scope §3.6).</summary>
+    public string? QuietHoursStart { get; init; }
+    public string? QuietHoursEnd { get; init; }
+
+    /// <summary>True if <paramref name="now"/> falls in the quiet-hours window. Pure, wrap-around aware.</summary>
+    public bool InQuietHours(DateTime now)
+    {
+        if (!TimeOnly.TryParse(QuietHoursStart, out var start) || !TimeOnly.TryParse(QuietHoursEnd, out var end))
+            return false;
+        if (start == end)
+            return false; // empty window
+        var t = TimeOnly.FromDateTime(now);
+        return start < end ? t >= start && t < end   // same-day window, e.g. 09:00–17:00
+                           : t >= start || t < end;   // wraps midnight, e.g. 22:00–07:00
+    }
 }
 
 /// <summary>Loads/saves <see cref="OddmonConfig"/> at %APPDATA%\Oddmon\config.json.</summary>
@@ -25,7 +44,7 @@ public static class ConfigStore
 
     private static string Dir =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Oddmon");
-    private static string FilePath => Path.Combine(Dir, "config.json");
+    public static string FilePath => Path.Combine(Dir, "config.json");
 
     public static OddmonConfig Load() => Load(FilePath);
 
