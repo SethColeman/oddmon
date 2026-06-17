@@ -1,0 +1,16 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.6.0.schema.json
+PackageIdentifier: SethColeman.Oddmon
+PackageVersion: 0.2.0
+# Portable tray app shipped as a zip (oddmon.exe + sounds/ at the archive root).
+# winget extracts the whole archive to the package dir, so sounds/ stays beside the exe.
+InstallerType: zip
+NestedInstallerType: portable
+NestedInstallerFiles:
+  - RelativeFilePath: oddmon.exe
+    PortableCommandAlias: oddmon
+Installers:
+  - Architecture: x64
+    InstallerUrl: https://github.com/SethColeman/oddmon/releases/download/v0.2.0/oddmon-0.2.0-win-x64.zip
+    InstallerSha256: 2B2997DD2FDBFEE05DA316A13CE625C2E941261D9AEB757FA5165316B8D01515
+ManifestType: installer
+ManifestVersion: 1.6.0
