@@ -56,18 +56,29 @@ internal static class Program
         };
         menu.Items.Add(mute);
 
-        var volume = new ToolStripMenuItem("Volume");
-        foreach (int pct in new[] { 25, 50, 75, 100 })
+        var volLabel = new ToolStripMenuItem($"Volume: {config.VolumePercent}%") { Enabled = false };
+        menu.Items.Add(volLabel);
+
+        var slider = new TrackBar
         {
-            var item = new ToolStripMenuItem($"{pct}%");
-            item.Click += (_, _) =>
-            {
-                sound.Volume = pct / 100f;
-                Update(c => c with { VolumePercent = pct });
-            };
-            volume.DropDownItems.Add(item);
-        }
-        menu.Items.Add(volume);
+            Minimum = 0,
+            Maximum = 100,
+            Value = config.VolumePercent,
+            TickStyle = TickStyle.None,
+            AutoSize = false,
+            Width = 180,
+            Height = 28,
+        };
+        slider.ValueChanged += (_, _) =>
+        {
+            sound.Volume = slider.Value / 100f;       // live
+            volLabel.Text = $"Volume: {slider.Value}%";
+        };
+        // Persist once when the user finishes (drag release or keyboard), not on every tick.
+        void PersistVolume(object? _, EventArgs __) => Update(c => c with { VolumePercent = slider.Value });
+        slider.MouseUp += PersistVolume;
+        slider.KeyUp += PersistVolume;
+        menu.Items.Add(new ToolStripControlHost(slider) { AutoSize = false, Width = 190, Height = 30 });
 
         var panel = new ToolStripMenuItem("Show panel") { CheckOnClick = true, Checked = config.OverlayEnabled };
         panel.CheckedChanged += (_, _) =>
