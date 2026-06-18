@@ -63,7 +63,12 @@ public static class ConfigStore
     /// <summary>Write defaults only if no file exists yet; never clobber hand edits.</summary>
     public static void SaveIfMissing(OddmonConfig config)
     {
-        if (!File.Exists(FilePath)) Save(config);
+        if (!File.Exists(FilePath)) Save(config); // Save() creates the dir
+    }
+
+    public static void SaveIfMissing(OddmonConfig config, string path)
+    {
+        if (!File.Exists(path)) Save(config, path);
     }
 
     public static void Save(OddmonConfig config, string path) =>
