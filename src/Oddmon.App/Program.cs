@@ -28,7 +28,7 @@ internal static class Program
         // Silent while idle, in a call (mic in use), or during quiet hours. LEDs keep working.
         using var sound = new SeekSoundPlayer(
             () => monitor.Current != ActivityLevel.Idle && !mic.InCall && !config.InQuietHours(DateTime.Now),
-            config.VolumePercent / 100f, soundSetDir: soundDir)
+            config.VolumePercent / 100f, soundSetDir: soundDir, outputDevice: config.OutputDevice)
         {
             Enabled = config.SoundEnabled,
         };
@@ -79,6 +79,37 @@ internal static class Program
         slider.MouseUp += PersistVolume;
         slider.KeyUp += PersistVolume;
         menu.Items.Add(new ToolStripControlHost(slider) { AutoSize = false, Width = 190, Height = 30 });
+
+        var output = new ToolStripMenuItem("Output device");
+        output.DropDownOpening += (_, _) =>
+        {
+            output.DropDownItems.Clear();
+
+            var def = new ToolStripMenuItem("System default")
+            {
+                Checked = string.IsNullOrWhiteSpace(config.OutputDevice),
+            };
+            def.Click += (_, _) =>
+            {
+                sound.SetOutputDevice(null);
+                Update(c => c with { OutputDevice = null });
+            };
+            output.DropDownItems.Add(def);
+
+            var names = AudioOutputs.Names();
+            string? active = AudioOutputs.Match(names, config.OutputDevice);
+            foreach (var name in names)
+            {
+                var item = new ToolStripMenuItem(name) { Checked = name == active };
+                item.Click += (_, _) =>
+                {
+                    sound.SetOutputDevice(name);
+                    Update(c => c with { OutputDevice = name });
+                };
+                output.DropDownItems.Add(item);
+            }
+        };
+        menu.Items.Add(output);
 
         var panel = new ToolStripMenuItem("Show panel") { CheckOnClick = true, Checked = config.OverlayEnabled };
         panel.CheckedChanged += (_, _) =>
