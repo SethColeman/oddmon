@@ -51,7 +51,8 @@ dotnet run --project src/Oddmon.App
 Right-click the tray icon:
 
 - **Mute sounds** — manual mute toggle
-- **Volume** — 25 / 50 / 75 / 100 %
+- **Volume** — slider, 0–100%
+- **Output device** — choose the playback device (default: Windows default)
 - **Show panel** — toggle the desktop LED panel
 - **Start with Windows** — opt-in launch at login
 - **Edit settings (config.json)…** — opens the config file in your default editor
@@ -66,9 +67,10 @@ Settings live in `config.json` at `%APPDATA%\Oddmon\`, written by the tray menu 
 | Key | Meaning | Default |
 |-----|---------|---------|
 | `DiskSensitivity` | Disk-busy % to light the LED / play sound; lower = more sensitive | `8` |
-| `Volume` | Master sound volume, 0–1 | `0.3` |
+| `VolumePercent` | Master sound volume, 0–100 | `15` |
 | `SoundEnabled` | Sounds on/off (manual mute) | `true` |
 | `SoundSetPath` | Folder of WAV clips; `null` uses the bundled set | `null` |
+| `OutputDevice` | Playback device name (substring of the friendly name); `null` uses the Windows default | `null` |
 | `OverlayEnabled` / `OverlayX` / `OverlayY` | Desktop panel visibility & position | off |
 | `QuietHoursStart` / `QuietHoursEnd` | Silence window as `"HH:mm"`; wraps midnight (e.g. `"22:00"`–`"07:00"`); `null` disables | `null` |
 | `Autostart` | Launch at login (mirrors the tray toggle) | `false` |
