@@ -15,7 +15,10 @@ internal static class Program
 #pragma warning restore WFO5001
 
         var config = ConfigStore.Load();
-        void Save() => ConfigStore.Save(config);
+        // Re-load from disk before each write so a menu toggle merges onto hand edits
+        // instead of clobbering them with the stale launch-time snapshot.
+        void Update(Func<OddmonConfig, OddmonConfig> change) =>
+            ConfigStore.Save(config = change(ConfigStore.Load()));
 
         using var monitor = new DiskMonitor(config.DiskSensitivity);
         using var power = new PowerMonitor();
@@ -40,8 +43,7 @@ internal static class Program
         }
         overlay.ResizeEnd += (_, _) =>
         {
-            config = config with { OverlayX = overlay.Location.X, OverlayY = overlay.Location.Y };
-            Save();
+            Update(c => c with { OverlayX = overlay.Location.X, OverlayY = overlay.Location.Y });
         };
 
         var menu = new ContextMenuStrip();
@@ -50,8 +52,7 @@ internal static class Program
         mute.CheckedChanged += (_, _) =>
         {
             sound.Enabled = !mute.Checked;
-            config = config with { SoundEnabled = sound.Enabled };
-            Save();
+            Update(c => c with { SoundEnabled = sound.Enabled });
         };
         menu.Items.Add(mute);
 
@@ -62,8 +63,7 @@ internal static class Program
             item.Click += (_, _) =>
             {
                 sound.Volume = pct / 100f;
-                config = config with { Volume = sound.Volume };
-                Save();
+                Update(c => c with { Volume = sound.Volume });
             };
             volume.DropDownItems.Add(item);
         }
@@ -73,8 +73,7 @@ internal static class Program
         panel.CheckedChanged += (_, _) =>
         {
             if (panel.Checked) overlay.Show(); else overlay.Hide();
-            config = config with { OverlayEnabled = panel.Checked };
-            Save();
+            Update(c => c with { OverlayEnabled = panel.Checked });
         };
         menu.Items.Add(panel);
 
@@ -84,8 +83,7 @@ internal static class Program
         autostart.CheckedChanged += (_, _) =>
         {
             Autostart.Set(autostart.Checked);
-            config = config with { Autostart = autostart.Checked };
-            Save();
+            Update(c => c with { Autostart = autostart.Checked });
         };
         menu.Items.Add(autostart);
 
@@ -93,7 +91,7 @@ internal static class Program
         // quiet hours are hand-edited there (scope §4). Edits apply on next launch.
         menu.Items.Add("Edit settings (config.json)…", null, (_, _) =>
         {
-            Save(); // ensure the file exists before opening
+            ConfigStore.SaveIfMissing(config); // create on first open only; never clobber hand edits
             System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(ConfigStore.FilePath) { UseShellExecute = true });
         });
 

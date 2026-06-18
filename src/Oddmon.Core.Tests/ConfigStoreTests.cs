@@ -18,6 +18,27 @@ public class ConfigStoreTests
     }
 
     [Fact]
+    public void SaveIfMissing_DoesNotClobberExistingFile()
+    {
+        // Regression: "Edit settings" re-open must not overwrite hand edits.
+        string path = ConfigStore.FilePath;
+        bool preexisting = File.Exists(path);
+        string? backup = preexisting ? File.ReadAllText(path) : null;
+        try
+        {
+            var edited = new OddmonConfig { DiskSensitivity = 99.0 };
+            ConfigStore.Save(edited, path);              // simulate a hand edit on disk
+            ConfigStore.SaveIfMissing(new OddmonConfig()); // re-open settings
+            Assert.Equal(edited, ConfigStore.Load(path)); // edit survives
+        }
+        finally
+        {
+            if (backup is not null) File.WriteAllText(path, backup);
+            else if (!preexisting) File.Delete(path);
+        }
+    }
+
+    [Fact]
     public void Load_MissingOrCorrupt_ReturnsDefaults()
     {
         string missing = Path.Combine(Path.GetTempPath(), $"oddmon-none-{Guid.NewGuid():N}.json");

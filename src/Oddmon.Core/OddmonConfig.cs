@@ -60,6 +60,12 @@ public static class ConfigStore
         Save(config, FilePath);
     }
 
+    /// <summary>Write defaults only if no file exists yet; never clobber hand edits.</summary>
+    public static void SaveIfMissing(OddmonConfig config)
+    {
+        if (!File.Exists(FilePath)) Save(config);
+    }
+
     public static void Save(OddmonConfig config, string path) =>
         File.WriteAllText(path, JsonSerializer.Serialize(config, Opts));
 }
