@@ -421,9 +421,9 @@ git commit -m "SeekSoundPlayer: rebuildable output sink + device selection"
 
 > Verified by build + manual smoke (WinForms).
 
-- [ ] **Step 1: Convert volume at the player boundary**
+- [ ] **Step 1: Confirm the player-boundary conversion is in place**
 
-In `src/Oddmon.App/Program.cs`, in the `SeekSoundPlayer` construction, change `config.Volume` to `config.VolumePercent / 100f`:
+Task 1 already updated the `SeekSoundPlayer` construction in `src/Oddmon.App/Program.cs` to convert percent → 0–1. Confirm it reads:
 
 ```csharp
         using var sound = new SeekSoundPlayer(
@@ -434,9 +434,11 @@ In `src/Oddmon.App/Program.cs`, in the `SeekSoundPlayer` construction, change `c
         };
 ```
 
+(No change needed if it already matches; Task 5 adds the `outputDevice:` argument later.)
+
 - [ ] **Step 2: Replace the Volume submenu with a slider**
 
-Delete this block (note: it uses the `Update(...)` helper, not `Save()`):
+Delete this block (it already uses `VolumePercent` and the `Update(...)` helper after Task 1):
 
 ```csharp
         var volume = new ToolStripMenuItem("Volume");
@@ -446,7 +448,7 @@ Delete this block (note: it uses the `Update(...)` helper, not `Save()`):
             item.Click += (_, _) =>
             {
                 sound.Volume = pct / 100f;
-                Update(c => c with { Volume = sound.Volume });
+                Update(c => c with { VolumePercent = pct });
             };
             volume.DropDownItems.Add(item);
         }
