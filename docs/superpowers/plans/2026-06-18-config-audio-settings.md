@@ -436,7 +436,7 @@ In `src/Oddmon.App/Program.cs`, in the `SeekSoundPlayer` construction, change `c
 
 - [ ] **Step 2: Replace the Volume submenu with a slider**
 
-Delete this block:
+Delete this block (note: it uses the `Update(...)` helper, not `Save()`):
 
 ```csharp
         var volume = new ToolStripMenuItem("Volume");
@@ -446,8 +446,7 @@ Delete this block:
             item.Click += (_, _) =>
             {
                 sound.Volume = pct / 100f;
-                config = config with { Volume = sound.Volume };
-                Save();
+                Update(c => c with { Volume = sound.Volume });
             };
             volume.DropDownItems.Add(item);
         }
@@ -485,7 +484,7 @@ Replace it with:
 - [ ] **Step 3: Build**
 
 Run: `dotnet build Oddmon.slnx -v quiet`
-Expected: `Build succeeded. 0 Error(s)`. (Note: `Save` is no longer referenced by the volume code; it remains used elsewhere only if other handlers call it — they use `Update`, so if the compiler warns `Save` is unused, that is expected and handled in Task 5/cleanup. It is fine for now as `SaveIfMissing` is separate.)
+Expected: `Build succeeded. 0 Error(s)`. (The menu already persists via the `Update(...)` helper, defined near the top of `Main`; reuse it — do not reintroduce a `Save()` local.)
 
 - [ ] **Step 4: Manual smoke**
 
