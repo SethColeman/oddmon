@@ -31,8 +31,8 @@ public static class AudioOutputs
         if (string.IsNullOrWhiteSpace(saved)) return null;
         try
         {
-            // ponytail: enumerator not disposed here — devices outlive it and the player owns the chosen one.
-            var en = new MMDeviceEnumerator();
+            // The returned MMDevice keeps its own COM ref, so disposing the enumerator is safe.
+            using var en = new MMDeviceEnumerator();
             return en.EnumerateAudioEndPoints(DataFlow.Render, DeviceState.Active)
                      .FirstOrDefault(d => d.FriendlyName.Contains(saved, StringComparison.OrdinalIgnoreCase));
         }
