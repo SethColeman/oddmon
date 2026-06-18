@@ -28,7 +28,7 @@ internal static class Program
         // Silent while idle, in a call (mic in use), or during quiet hours. LEDs keep working.
         using var sound = new SeekSoundPlayer(
             () => monitor.Current != ActivityLevel.Idle && !mic.InCall && !config.InQuietHours(DateTime.Now),
-            config.Volume, soundSetDir: soundDir)
+            config.VolumePercent / 100f, soundSetDir: soundDir)
         {
             Enabled = config.SoundEnabled,
         };
@@ -63,7 +63,7 @@ internal static class Program
             item.Click += (_, _) =>
             {
                 sound.Volume = pct / 100f;
-                Update(c => c with { Volume = sound.Volume });
+                Update(c => c with { VolumePercent = pct });
             };
             volume.DropDownItems.Add(item);
         }
