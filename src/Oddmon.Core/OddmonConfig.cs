@@ -7,6 +7,7 @@ public sealed record OddmonConfig
 {
     /// <summary>Disk-busy % to light the LED / click; lower is more sensitive (scope §3.2).</summary>
     public double DiskSensitivity { get; init; } = 8.0;
+    /// <summary>Master volume as a percent, 0–100; converted to 0–1 for the player (scope §1).</summary>
     public int VolumePercent { get; init; } = 15;
     public bool SoundEnabled { get; init; } = true;
 
