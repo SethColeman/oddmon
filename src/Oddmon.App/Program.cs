@@ -134,7 +134,15 @@ internal static class Program
         menu.Items.Add("Edit settings (config.json)…", null, (_, _) =>
         {
             ConfigStore.SaveIfMissing(config); // create on first open only; never clobber hand edits
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(ConfigStore.FilePath) { UseShellExecute = true });
+            try
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(ConfigStore.FilePath) { UseShellExecute = true });
+            }
+            catch
+            {
+                // No app is associated with .json on this machine — fall back to Notepad.
+                System.Diagnostics.Process.Start("notepad.exe", ConfigStore.FilePath);
+            }
         });
 
         menu.Items.Add(new ToolStripSeparator());
