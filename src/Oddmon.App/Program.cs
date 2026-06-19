@@ -80,6 +80,30 @@ internal static class Program
         slider.KeyUp += PersistVolume;
         menu.Items.Add(new ToolStripControlHost(slider) { AutoSize = false, Width = 190, Height = 30 });
 
+        var diskLabel = new ToolStripMenuItem($"Disk threshold: {(int)Math.Round(config.DiskSensitivity)}%") { Enabled = false };
+        menu.Items.Add(diskLabel);
+
+        var diskSlider = new TrackBar
+        {
+            Minimum = 0,
+            Maximum = 100,
+            Value = Math.Clamp((int)Math.Round(config.DiskSensitivity), 0, 100),
+            TickStyle = TickStyle.None,
+            AutoSize = false,
+            Width = 180,
+            Height = 28,
+        };
+        diskSlider.ValueChanged += (_, _) =>
+        {
+            monitor.MinBusyPercent = diskSlider.Value;          // live; lower = more sensitive
+            diskLabel.Text = $"Disk threshold: {diskSlider.Value}%";
+        };
+        // Persist once on release, like the volume slider.
+        void PersistDisk(object? _, EventArgs __) => Update(c => c with { DiskSensitivity = diskSlider.Value });
+        diskSlider.MouseUp += PersistDisk;
+        diskSlider.KeyUp += PersistDisk;
+        menu.Items.Add(new ToolStripControlHost(diskSlider) { AutoSize = false, Width = 190, Height = 30 });
+
         var output = new ToolStripMenuItem("Output device");
         output.DropDownOpening += (_, _) =>
         {

@@ -14,7 +14,10 @@ public sealed class DiskMonitor : IDisposable
     private readonly PerformanceCounter _readBytes;
     private readonly PerformanceCounter _writeBytes;
     private readonly System.Timers.Timer _timer;
-    private readonly double _minBusyPercent;
+
+    /// <summary>Disk-busy % gate (100 − idle) to light the LED; lower is more sensitive.
+    /// Settable live (e.g. from the tray slider); read on the poll thread. See scope §3.2.</summary>
+    public double MinBusyPercent { get; set; }
 
     public ActivityLevel Current { get; private set; } = ActivityLevel.Idle;
 
@@ -29,7 +32,7 @@ public sealed class DiskMonitor : IDisposable
     /// <param name="pollIntervalMs">Poll period; 100ms ≈ 10 Hz (scope §3.2: 10–20 Hz).</param>
     public DiskMonitor(double minBusyPercent = 8.0, double pollIntervalMs = 100.0)
     {
-        _minBusyPercent = minBusyPercent;
+        MinBusyPercent = minBusyPercent;
 
         // "_Total" aggregates all physical disks — whole-system activity is enough for v1.
         _idle = new PerformanceCounter("PhysicalDisk", "% Idle Time", "_Total", readOnly: true);
@@ -54,7 +57,7 @@ public sealed class DiskMonitor : IDisposable
         // ponytail: no smoothing yet — % Idle Time gate + change-detection only. Add a
         // short "stay-lit" hold if the LED still flickers under bursty I/O (deferred from M1).
         var level = ActivityClassifier.Classify(
-            _idle.NextValue(), _readBytes.NextValue(), _writeBytes.NextValue(), _minBusyPercent);
+            _idle.NextValue(), _readBytes.NextValue(), _writeBytes.NextValue(), MinBusyPercent);
         if (level == Current)
             return;
 

@@ -52,10 +52,11 @@ Right-click the tray icon:
 
 - **Mute sounds** — manual mute toggle
 - **Volume** — slider, 0–100%
+- **Disk threshold** — slider, 0–100%; the disk-busy % that lights the LED / plays sound (lower = more sensitive)
 - **Output device** — choose the playback device (default: Windows default)
 - **Show panel** — toggle the desktop LED panel
 - **Start with Windows** — opt-in launch at login
-- **Edit settings (config.json)…** — opens the config file in your default editor
+- **Edit settings (config.json)…** — opens `config.json` in Notepad
 
 All persist across restarts. Edits made directly in `config.json` apply on next launch.
 
